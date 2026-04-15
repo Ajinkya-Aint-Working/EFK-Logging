@@ -85,7 +85,7 @@ podAnnotations: {}
 # additionals labels
 labels: {}
 
-esJavaOpts: "" # example: "-Xmx1g -Xms1g"
+esJavaOpts: "-Xmx1g -Xms1g" # always half of memory limit (limit is 2Gi)
 
 resources:
   requests:
@@ -106,10 +106,11 @@ initResources: {}
 networkHost: "0.0.0.0"
 
 volumeClaimTemplate:
+  storageClassName: gp3
   accessModes: ["ReadWriteOnce"]
   resources:
     requests:
-      storage: 30Gi
+      storage: 50Gi
 
 rbac:
   create: false
@@ -176,7 +177,14 @@ antiAffinity: "hard"
 
 # This is the node affinity settings as defined in
 # https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#node-affinity-beta-feature
-nodeAffinity: {}
+nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: node-pool
+            operator: In
+            values:
+              - ondemand-amd64
 
 # The default is to deploy all pods serially. By setting this to parallel all pods are started at
 # the same time when bootstrapping the cluster
@@ -248,8 +256,11 @@ schedulerName: ""
 
 imagePullSecrets: []
 nodeSelector: {}
-tolerations: []
-
+tolerations:
+  - key: "workload-class"
+    operator: "Equal"
+    value: "critical"
+    effect: "NoSchedule"
 # Enabling this will publicly expose your Elasticsearch instance.
 # Only enable this if you have security enabled on your cluster
 ingress:
