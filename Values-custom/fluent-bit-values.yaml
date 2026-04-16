@@ -493,7 +493,8 @@ config:
         # Uses the es_index field set by setIndex.lua: logs-{namespace}-{container}-{date}
         Logstash_Prefix_Key es_index
         Retry_Limit False
-        Suppress_Type_Name On   # required for ES 8.x, _type field is removed
+        # required for ES 8.x, _type field is removed
+        Suppress_Type_Name On   
 
     [OUTPUT]
         Name es
@@ -509,7 +510,8 @@ config:
         Logstash_Format On
         Logstash_Prefix node
         Retry_Limit False
-        Suppress_Type_Name On   # required for ES 8.x
+        # required for ES 8.x
+        Suppress_Type_Name On   
 
   ## https://docs.fluentbit.io/manual/administration/configuring-fluent-bit/classic-mode/upstream-servers
   ## This configuration is deprecated, please use `extraFiles` instead.
