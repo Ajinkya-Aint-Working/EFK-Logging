@@ -1,0 +1,38 @@
+# efk-log-test.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-test
+  namespace: default          # intentionally NOT efk — Lua filter should pass this through
+  labels:
+    app: log-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-test
+  template:
+    metadata:
+      labels:
+        app: log-test
+    spec:
+      containers:
+      - name: log-generator
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - |
+          i=0
+          while true; do
+            echo "{\"level\":\"info\",\"msg\":\"EFK pipeline test\",\"seq\":$i,\"ts\":\"$(date -Iseconds)\"}"
+            i=$((i+1))
+            sleep 5
+          done
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
