@@ -328,7 +328,13 @@ env:
         # This secret is auto-created by the elasticsearch helm chart
         name: elasticsearch-master-credentials
         key: password
-        
+  - name: ES_USERNAME
+    valueFrom:
+      secretKeyRef:
+        # Same secret holds the username, default value is "elastic"
+        name: elasticsearch-master-credentials
+        key: username
+
 #  - name: FOO
 #    value: "bar"
 
@@ -450,7 +456,7 @@ config:
         Systemd_Filter _SYSTEMD_UNIT=kubelet.service
         Read_From_Tail On
 
-  ## https://docs.fluentbit.io/manual/pipeline/filters
+## https://docs.fluentbit.io/manual/pipeline/filters
   filters: |
     [FILTER]
         Name kubernetes
@@ -460,22 +466,50 @@ config:
         K8S-Logging.Parser On
         K8S-Logging.Exclude On
 
+    [FILTER]
+        # Lua filter must come AFTER kubernetes filter
+        # so that kubernetes metadata (namespace, container) is already available
+        # setIndex.lua drops efk namespace logs and sets the es_index field
+        Name lua
+        Match kube.*
+        script /fluent-bit/scripts/setIndex.lua
+        call set_index
+
   ## https://docs.fluentbit.io/manual/pipeline/outputs
   outputs: |
     [OUTPUT]
         Name es
         Match kube.*
+        Type _doc
+        # Internal k8s DNS name of the elasticsearch headless service
         Host elasticsearch-master
+        Port 9200
+        # Credentials injected from env vars pulled from elasticsearch-master-credentials secret
+        HTTP_User ${ES_USERNAME}
+        HTTP_Passwd ${ES_PASSWORD}
+        tls On
+        tls.verify Off          # cert is self-signed by the ES helm chart
         Logstash_Format On
+        # Uses the es_index field set by setIndex.lua: logs-{namespace}-{container}-{date}
+        Logstash_Prefix_Key es_index
         Retry_Limit False
+        Suppress_Type_Name On   # required for ES 8.x, _type field is removed
 
     [OUTPUT]
         Name es
         Match host.*
+        Type _doc
+        # systemd/kubelet logs go to a separate node-{date} index
         Host elasticsearch-master
+        Port 9200
+        HTTP_User ${ES_USERNAME}
+        HTTP_Passwd ${ES_PASSWORD}
+        tls On
+        tls.verify Off
         Logstash_Format On
         Logstash_Prefix node
         Retry_Limit False
+        Suppress_Type_Name On   # required for ES 8.x
 
   ## https://docs.fluentbit.io/manual/administration/configuring-fluent-bit/classic-mode/upstream-servers
   ## This configuration is deprecated, please use `extraFiles` instead.
